@@ -1,4 +1,6 @@
-In this challenge, you will be asked to build a simple window console application that will manipulate data in CSV files.
+# Requirements
+
+You will be asked to build a simple window console application that will manipulate data in CSV files.
 This application also allows user to export some their specific reports to the files as well.
 
 ## Input files:
