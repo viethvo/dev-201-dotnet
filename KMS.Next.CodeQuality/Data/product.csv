@@ -1,0 +1,4 @@
+﻿ProductId,ProductName,Price,ProductDescription,ExpiredDate,CategoryId,DeletedFlag
+1,Banana,10,"Good for health",03/01/2017,1,false
+2,Milk,5,,03/05/2017,2,false
+3,Sugar,2,No cateogry,03/15/2017,,false
