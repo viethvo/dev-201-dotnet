@@ -40,6 +40,87 @@ namespace KMS.Next.CodeQuality.CSV
         }
 
         /// <summary>
+        /// Exports file map between category and product.
+        /// </summary>
+        /// <param name = "listCategory">List of category.</param>
+        /// <param name = "listProduct">List of product.</param>
+        /// <param name = "path">Path of export file.</param>
+        /// <return>Task.</return>
+        public static async Task ExportFileMapBetween(List<Category> listCategory, List<Product> listProduct, string path)
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            var mapList = Map(listCategory, listProduct);
+            string content = ConvertListMapToString(mapList);
+
+            // Write file
+            var writer = File.OpenWrite(path);
+            var streamWriter = new StreamWriter(writer);
+            await streamWriter.WriteAsync(content);
+
+            // Close stream
+            streamWriter.Close();
+            writer.Close();
+        }
+
+        /// <summary>
+        /// Gets list map between category and product.
+        /// </summary>
+        /// <param name = "listCategory">List of category.</param>
+        /// <param name = "listProduct">List of product.</param>
+        /// <return>System.String.</return>
+        private static Dictionary<string, string> Map(List<Category> listCategory, List<Product> listProduct)
+        {
+            int total = listProduct.Count; // total products
+            int totalCID = 0; // total products which have category ID
+            
+            // Create result list map
+            Dictionary<string, string> result = new Dictionary<string, string>();
+            result.Add("CategoryName", "ProductCount");
+
+            foreach (var category in listCategory)
+            {
+                int count = listProduct.FindAll(p => p.CategoryId == category.CategoryId).Count;
+                if (count != 0)
+                {
+                    totalCID += count;
+                    result.Add(category.CategoryName, count.ToString());
+                }
+            }
+
+            int other = totalCID < total ? total - totalCID : 0;
+
+            // Count for others
+            if (other != 0)
+            {
+                result.Add("Others", other.ToString());
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Converts list map to string.
+        /// </summary>
+        /// <param name = "listMap">List map between category and product.</param>
+        /// <return>System.String.</return>
+        private static string ConvertListMapToString(Dictionary<string, string> listMap)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            foreach(var map in listMap)
+            {
+                string temp = string.Format("{0},{1}", map.Key, map.Value);
+                builder.AppendLine(temp);
+            }
+
+            return builder.ToString();
+        }
+
+        /// <summary>
         /// Converts content of csv file to list.
         /// </summary>
         /// <param name = "lines">Content of csv file.</param>
@@ -56,6 +137,11 @@ namespace KMS.Next.CodeQuality.CSV
                 if (isHeader)
                 {
                     isHeader = false;
+                    continue;
+                }
+                // Check line if empty
+                if (string.IsNullOrEmpty(line))
+                {
                     continue;
                 }
 

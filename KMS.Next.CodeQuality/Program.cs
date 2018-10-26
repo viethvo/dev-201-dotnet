@@ -11,18 +11,15 @@ namespace KMS.Next.CodeQuality
     {
         static void Main(string[] args)
         {
-            //var a = CSVHeper.ReadAllLines("Data\\category.csv");
-
-            //List<Category> listCategory = CSVHeper.ReadFromFile<Category>("Data\\category.csv");
-
+            List<Category> listCategory = CsvHelper.ReadFromFile<Category>("Data\\category.csv");
             //listCategory.PrintAll();
 
             List<Product> listProduct = CsvHelper.ReadFromFile<Product>("Data\\product.csv");
-
             //listProduct.PrintAll();
 
-            listProduct.WriteToFile("Data\\product1.csv").Wait();
+            CsvHelper.ExportFileMapBetween(listCategory, listProduct, "Data\\map.csv").Wait();
 
+            //listProduct.WriteToFile("Data\\product1.csv").Wait();
 
             Console.ReadKey();
         }
