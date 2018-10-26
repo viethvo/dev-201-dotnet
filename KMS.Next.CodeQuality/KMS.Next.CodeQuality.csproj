@@ -45,6 +45,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CSV\CsvHelper.cs" />
+    <Compile Include="CSV\DTO\Category.cs" />
+    <Compile Include="CSV\DTO\ListExtension.cs" />
+    <Compile Include="CSV\DTO\Product.cs" />
+    <Compile Include="CSV\DTO\ProductExpired.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

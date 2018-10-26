@@ -1,7 +1,7 @@
-﻿using System;
+﻿using KMS.Next.CodeQuality.CSV.DTO;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -48,13 +48,41 @@ namespace KMS.Next.CodeQuality.CSV
         /// <return>Task.</return>
         public static async Task ExportFileMapBetween(List<Category> listCategory, List<Product> listProduct, string path)
         {
+            var mapList = MapAndCount(listCategory, listProduct);
+            string content = ConvertListCountMapToString(mapList);
+
+            // Write file
+            await WriteCsvFile(path, content);
+        }
+
+        /// <summary>
+        /// Exports the list of product expired in next month.
+        /// </summary>
+        /// <param name = "listCategory">List of category.</param>
+        /// <param name = "listProduct">List of product.</param>
+        /// <param name = "path">The path of csv file.</param>
+        /// <return>Task.</return>
+        public static async Task ExportFileExpiredNextMonth(List<Category> listCategory, List<Product> listProduct, string path)
+        {
+            var listExpired = GetProductExpiredNextMonth(listCategory, listProduct);
+            string content = ConvertListExpiredToString(listExpired);
+
+            // Write file
+            await WriteCsvFile(path, content);
+        }
+
+        /// <summary>
+        /// Writes content of csv file.
+        /// </summary>
+        /// <param name = "path">The path of csv file.</param>
+        /// <param name = "content">The content of csv file.</param>
+        /// <return>Task.</return>
+        private static async Task WriteCsvFile(string path, string content)
+        {
             if (File.Exists(path))
             {
                 File.Delete(path);
             }
-
-            var mapList = Map(listCategory, listProduct);
-            string content = ConvertListMapToString(mapList);
 
             // Write file
             var writer = File.OpenWrite(path);
@@ -67,16 +95,16 @@ namespace KMS.Next.CodeQuality.CSV
         }
 
         /// <summary>
-        /// Gets list map between category and product.
+        /// Gets list map and count between category and product.
         /// </summary>
         /// <param name = "listCategory">List of category.</param>
         /// <param name = "listProduct">List of product.</param>
-        /// <return>System.String.</return>
-        private static Dictionary<string, string> Map(List<Category> listCategory, List<Product> listProduct)
+        /// <return>Dictionary.</return>
+        private static Dictionary<string, string> MapAndCount(List<Category> listCategory, List<Product> listProduct)
         {
             int total = listProduct.Count; // total products
             int totalCID = 0; // total products which have category ID
-            
+
             // Create result list map
             Dictionary<string, string> result = new Dictionary<string, string>();
             result.Add("CategoryName", "ProductCount");
@@ -98,25 +126,88 @@ namespace KMS.Next.CodeQuality.CSV
             {
                 result.Add("Others", other.ToString());
             }
-
             return result;
         }
 
         /// <summary>
-        /// Converts list map to string.
+        /// Gets list of product expired next month.
         /// </summary>
-        /// <param name = "listMap">List map between category and product.</param>
-        /// <return>System.String.</return>
-        private static string ConvertListMapToString(Dictionary<string, string> listMap)
+        /// <param name = "listCategory">List of category.</param>
+        /// <param name = "listProduct">List of product.</param>
+        /// <return>List.</return>
+        private static List<ProductExpired> GetProductExpiredNextMonth(List<Category> listCategory, List<Product> listProduct)
+        {
+            // Create result list
+            List<ProductExpired> listResult = new List<ProductExpired>();
+
+            foreach (var product in listProduct)
+            {
+                // Check if expired
+                DateTime now = DateTime.Now;
+                double gapDay = (product.ExpiredDate - now).TotalDays;
+
+                if (gapDay > 31 || gapDay < 0)
+                {
+                    continue;
+                }
+
+                foreach (var category in listCategory)
+                {
+                    var productExpired = new ProductExpired
+                    {
+                        ProductId = product.ProductId,
+                        ProductName = product.ProductName,
+                        ExpiredDate = product.ExpiredDate
+                    };
+
+                    // Check and map product and category
+                    if (product.CategoryId == category.CategoryId)
+                    {
+                        productExpired.CategoryName = category.CategoryName;
+                    }
+
+                    if (product.CategoryId == null)
+                    {
+                        productExpired.CategoryName = "Others";
+                    }
+
+                    // Add to list
+                    if (!string.IsNullOrEmpty(productExpired.CategoryName))
+                    {
+                        listResult.Add(productExpired);
+                        break; // break if match
+                    }
+                }
+            }
+            return listResult;
+        }
+
+        private static string ConvertListExpiredToString(List<ProductExpired> listExpired)
         {
             StringBuilder builder = new StringBuilder();
 
-            foreach(var map in listMap)
+            foreach (var expired in listExpired)
+            {
+                string temp = string.Format("{0},{1},{2},{3}", expired.ProductId, expired.ProductName, expired.CategoryName, expired.ExpiredDate);
+                builder.AppendLine(temp);
+            }
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Converts list count map to string.
+        /// </summary>
+        /// <param name = "listMap">List map between category and product.</param>
+        /// <return>System.String.</return>
+        private static string ConvertListCountMapToString(Dictionary<string, string> listMap)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            foreach (var map in listMap)
             {
                 string temp = string.Format("{0},{1}", map.Key, map.Value);
                 builder.AppendLine(temp);
             }
-
             return builder.ToString();
         }
 
@@ -212,181 +303,6 @@ namespace KMS.Next.CodeQuality.CSV
             }
 
             return fileText.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
-        }
-    }
-
-    /// <summary>
-    /// Class Product.
-    /// </summary>
-    public class Product
-    {
-        /// <summary>
-        /// Gets or sets identifier of product.
-        /// </summary>
-        /// <value>The identifier of product.</value>
-        public int ProductId { get; set; }
-
-        /// <summary>
-        /// Gets or sets name of product.
-        /// </summary>
-        /// <value>The name of product.</value>
-        public string ProductName { get; set; }
-
-        /// <summary>
-        /// Gets or sets price of product.
-        /// </summary>
-        /// <value>The price of product.</value>
-        public double Price { get; set; }
-
-        /// <summary>
-        /// Gets or sets description of product.
-        /// </summary>
-        /// <value>The description of product.</value>
-        public string ProductDescription { get; set; }
-
-        /// <summary>
-        /// Gets or sets expired date of product.
-        /// </summary>
-        /// <value>The expired date of product.</value>
-        public DateTime ExpiredDate { get; set; }
-
-        /// <summary>
-        /// Gets or sets category identifier of product.
-        /// </summary>
-        /// <value>The category identifier of product.</value>
-        public int? CategoryId { get; set; }
-
-        /// <summary>
-        /// Gets or sets deleted flag.
-        /// </summary>
-        /// <value>The deleted flag.</value>
-        public bool DeletedFlag { get; set; }
-
-        /// <summary>
-        /// Gets and convert Product class to string.
-        /// </summary>
-        /// <return>System.String.</return>
-        public override string ToString()
-        {
-            return string.Format("{0},{1},{2},{3},{4},{5},{6}", ProductId, ProductName, Price, ProductDescription, ExpiredDate, CategoryId, DeletedFlag);
-        }
-    }
-
-    /// <summary>
-    /// Class Category.
-    /// </summary>
-    public class Category
-    {
-        /// <summary>
-        /// Gets or sets identifier of category .
-        /// </summary>
-        /// <value>The identifier of category.</value>
-        public int CategoryId { get; set; }
-
-        /// <summary>
-        /// Gets or sets name of category .
-        /// </summary>
-        /// <value>The name of category.</value>
-        public string CategoryName { get; set; }
-
-        /// <summary>
-        /// Gets or sets description of category .
-        /// </summary>
-        /// <value>The description of category.</value>
-        public string CategoryDescription { get; set; }
-
-        /// <summary>
-        /// Gets or sets deleted flag.
-        /// </summary>
-        /// <value>The deleted flag.</value>
-        public bool DeletedFlag { get; set; }
-
-        /// <summary>
-        /// Gets and convert Product class to string.
-        /// </summary>
-        /// <return>System.String.</return>
-        public override string ToString()
-        {
-            return string.Format("{0},{1},{2},{3}", CategoryId, CategoryName, CategoryDescription, DeletedFlag);
-        }
-    }
-
-    /// <summary>
-    /// Class ListExtension.
-    /// </summary>
-    public static class ListExtension
-    {
-        /// <summary>
-        /// Prints all content from list.
-        /// </summary>
-        /// <param name = "resultList" > The list.</param>
-        public static void PrintAll<T>(this List<T> resultList)
-        {
-            // Check type
-            if (typeof(T) != typeof(Product) && typeof(T) != typeof(Category))
-            {
-                throw new Exception("This type is not supported!");
-            }
-
-            // Get properties of Category Class
-            var properties = typeof(T).GetProperties();
-
-            // Print title
-            foreach (var property in properties)
-            {
-                Console.Write("{0}\t", property.Name);
-            }
-
-            Console.WriteLine();
-
-            // Print content
-            for (int i = 0; i < resultList.Count; i++)
-            {
-                if (resultList[i] != null)
-                {
-                    foreach (var property in properties)
-                    {
-                        Console.Write("{0}\t", property.GetValue(resultList[i]));
-                    }
-                    Console.WriteLine();
-                }
-                else
-                {
-                    Console.WriteLine("Line {0}: Invalid format", i + 1);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Writes content to csv file.
-        /// </summary>
-        /// <param name = "resultList" >The result list.</param>
-        /// <param name = "path" >The path of csv file.</param>
-        /// <return>Task.</return>
-        public static async Task WriteToFile<T>(this List<T> resultList, string path)
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-
-            string content = string.Empty;
-
-            // Get properties
-            var properties = typeof(T).GetProperties();
-
-            // Write file
-            var writer = File.OpenWrite(path);
-            var streamWriter = new StreamWriter(writer);
-
-            foreach (var item in resultList)
-            {
-                await streamWriter.WriteLineAsync(item.ToString());
-            }
-
-            // Close stream
-            streamWriter.Close();
-            writer.Close();
         }
     }
 }

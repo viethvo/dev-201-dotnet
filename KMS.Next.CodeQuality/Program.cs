@@ -1,4 +1,5 @@
 ﻿using KMS.Next.CodeQuality.CSV;
+using KMS.Next.CodeQuality.CSV.DTO;
 using System;
 using System.Collections.Generic;
 /// <summary>
@@ -17,10 +18,12 @@ namespace KMS.Next.CodeQuality
             List<Product> listProduct = CsvHelper.ReadFromFile<Product>("Data\\product.csv");
             //listProduct.PrintAll();
 
-            CsvHelper.ExportFileMapBetween(listCategory, listProduct, "Data\\map.csv").Wait();
+            CsvHelper.ExportFileMapBetween(listCategory, listProduct, "Data\\count_product_per_category.csv").Wait();
 
+            CsvHelper.ExportFileExpiredNextMonth(listCategory, listProduct, "Data\\product_expire_next_month.csv").Wait();
             //listProduct.WriteToFile("Data\\product1.csv").Wait();
 
+            Console.WriteLine("Success!");
             Console.ReadKey();
         }
     }
