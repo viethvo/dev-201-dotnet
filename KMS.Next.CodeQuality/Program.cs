@@ -12,18 +12,21 @@ namespace KMS.Next.CodeQuality
     {
         static void Main(string[] args)
         {
+            /* USING CSV HELPER*/
             List<Category> listCategory = CsvHelper.ReadFromFile<Category>("Data\\category.csv");
-            //listCategory.PrintAll();
+            listCategory.PrintAll();
 
             List<Product> listProduct = CsvHelper.ReadFromFile<Product>("Data\\product.csv");
-            //listProduct.PrintAll();
+            listProduct.PrintAll();
 
-            CsvHelper.ExportFileMapBetween(listCategory, listProduct, "Data\\count_product_per_category.csv").Wait();
+            /* EXPORT FILES */
+            CsvHelper.ExportCategoryCount(listCategory, listProduct, "Data\\count_product_per_category.csv").Wait();
+            CsvHelper.ExportProductExpiredNextMonth(listCategory, listProduct, "Data\\product_expire_next_month.csv").Wait();
 
-            CsvHelper.ExportFileExpiredNextMonth(listCategory, listProduct, "Data\\product_expire_next_month.csv").Wait();
-            //listProduct.WriteToFile("Data\\product1.csv").Wait();
+            listProduct.WriteToFile("Data\\product_export.csv").Wait();
+            listCategory.WriteToFile("Data\\category_export.csv").Wait();
 
-            Console.WriteLine("Success!");
+            Console.WriteLine("Successfully!");
             Console.ReadKey();
         }
     }

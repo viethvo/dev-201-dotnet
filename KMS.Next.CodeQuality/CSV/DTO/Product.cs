@@ -8,33 +8,33 @@ namespace KMS.Next.CodeQuality.CSV.DTO
     public class Product
     {
         /// <summary>
-        /// Gets or sets identifier of product.
+        /// Gets or sets product identifier.
         /// </summary>
-        /// <value>The identifier of product.</value>
+        /// <value>The product identifier.</value>
         public int ProductId { get; set; }
 
         /// <summary>
-        /// Gets or sets name of product.
+        /// Gets or sets product name.
         /// </summary>
-        /// <value>The name of product.</value>
+        /// <value>The product name.</value>
         public string ProductName { get; set; }
 
         /// <summary>
-        /// Gets or sets price of product.
+        /// Gets or sets product price.
         /// </summary>
-        /// <value>The price of product.</value>
+        /// <value>The product price.</value>
         public double Price { get; set; }
 
         /// <summary>
-        /// Gets or sets description of product.
+        /// Gets or sets product description.
         /// </summary>
-        /// <value>The description of product.</value>
+        /// <value>The product description.</value>
         public string ProductDescription { get; set; }
 
         /// <summary>
-        /// Gets or sets expired date of product.
+        /// Gets or sets product expired date.
         /// </summary>
-        /// <value>The expired date of product.</value>
+        /// <value>The product expired date.</value>
         public DateTime ExpiredDate { get; set; }
 
         /// <summary>
@@ -58,5 +58,4 @@ namespace KMS.Next.CodeQuality.CSV.DTO
             return string.Format("{0},{1},{2},{3},{4},{5},{6}", ProductId, ProductName, Price, ProductDescription, ExpiredDate, CategoryId, DeletedFlag);
         }
     }
-
 }

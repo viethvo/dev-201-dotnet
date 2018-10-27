@@ -6,21 +6,21 @@
     public class Category
     {
         /// <summary>
-        /// Gets or sets identifier of category .
+        /// Gets or sets category identifier.
         /// </summary>
-        /// <value>The identifier of category.</value>
+        /// <value>The category identifier.</value>
         public int CategoryId { get; set; }
 
         /// <summary>
-        /// Gets or sets name of category .
+        /// Gets or sets category name.
         /// </summary>
-        /// <value>The name of category.</value>
+        /// <value>The category name.</value>
         public string CategoryName { get; set; }
 
         /// <summary>
-        /// Gets or sets description of category .
+        /// Gets or sets category description.
         /// </summary>
-        /// <value>The description of category.</value>
+        /// <value>The category description.</value>
         public string CategoryDescription { get; set; }
 
         /// <summary>

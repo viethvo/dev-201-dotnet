@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace KMS.Next.CodeQuality.CSV
@@ -13,10 +12,10 @@ namespace KMS.Next.CodeQuality.CSV
     public class CsvHelper
     {
         /// <summary>
-        /// Reads catefory from csv file.
+        /// Reads content from csv file.
         /// </summary>
-        /// <param name = "path">Path of category csv file.</param>
-        /// <return>List of T</return>
+        /// <param name = "path">Path of  csv file.</param>
+        /// <return>List of T.</return>
         public static List<T> ReadFromFile<T>(string path)
         {
             // Check path
@@ -35,50 +34,58 @@ namespace KMS.Next.CodeQuality.CSV
             var lines = ReadAllLines(path);
 
             // Convert lines to list
-            var resultList = ConvertToList<T>(lines);
-            return resultList;
+            var listResult = lines != null ? ConvertToList<T>(lines) : null;
+            return listResult.Count > 0 ? listResult : null;
         }
 
         /// <summary>
-        /// Exports file map between category and product.
+        /// Exports the product count of category to csv file.
         /// </summary>
-        /// <param name = "listCategory">List of category.</param>
-        /// <param name = "listProduct">List of product.</param>
-        /// <param name = "path">Path of export file.</param>
+        /// <param name = "categoryList">The category list.</param>
+        /// <param name = "productList">The product list.</param>
+        /// <param name = "path">The path of csv file.</param>
         /// <return>Task.</return>
-        public static async Task ExportFileMapBetween(List<Category> listCategory, List<Product> listProduct, string path)
+        public static async Task ExportCategoryCount(List<Category> categoryList, List<Product> productList, string path)
         {
-            var mapList = MapAndCount(listCategory, listProduct);
-            string content = ConvertListCountMapToString(mapList);
+            // Get map list and content
+            var mapList = categoryList != null && productList != null ? MapAndCount(categoryList, productList) : null;
+            var content = mapList != null ? ConvertListCount(mapList) : null;
 
             // Write file
-            await WriteCsvFile(path, content);
+            if (content != null)
+            {
+                await WriteCsvFile(path, content);
+            }
         }
 
         /// <summary>
         /// Exports the list of product expired in next month.
         /// </summary>
-        /// <param name = "listCategory">List of category.</param>
-        /// <param name = "listProduct">List of product.</param>
+        /// <param name = "categoryList">The category list.</param>
+        /// <param name = "productList">The product list.</param>
         /// <param name = "path">The path of csv file.</param>
         /// <return>Task.</return>
-        public static async Task ExportFileExpiredNextMonth(List<Category> listCategory, List<Product> listProduct, string path)
+        public static async Task ExportProductExpiredNextMonth(List<Category> categoryList, List<Product> productList, string path)
         {
-            var listExpired = GetProductExpiredNextMonth(listCategory, listProduct);
-            string content = ConvertListExpiredToString(listExpired);
+            var listExpired = categoryList != null && productList != null ? GetProductExpiredNextMonth(categoryList, productList) : null;
+            var result = listExpired != null ? ConvertProductListExpired(listExpired) : null;
 
             // Write file
-            await WriteCsvFile(path, content);
+            if (result != null)
+            {
+                await WriteCsvFile(path, result);
+            }
         }
 
         /// <summary>
         /// Writes content of csv file.
         /// </summary>
         /// <param name = "path">The path of csv file.</param>
-        /// <param name = "content">The content of csv file.</param>
+        /// <param name = "content">The list string of csv content.</param>
         /// <return>Task.</return>
-        private static async Task WriteCsvFile(string path, string content)
+        private static async Task WriteCsvFile(string path, List<string> content)
         {
+            // Check file
             if (File.Exists(path))
             {
                 File.Delete(path);
@@ -87,7 +94,11 @@ namespace KMS.Next.CodeQuality.CSV
             // Write file
             var writer = File.OpenWrite(path);
             var streamWriter = new StreamWriter(writer);
-            await streamWriter.WriteAsync(content);
+
+            foreach (var line in content)
+            {
+                await streamWriter.WriteLineAsync(line);
+            }
 
             // Close stream
             streamWriter.Close();
@@ -95,23 +106,23 @@ namespace KMS.Next.CodeQuality.CSV
         }
 
         /// <summary>
-        /// Gets list map and count between category and product.
+        /// Gets category and its product count to list.
         /// </summary>
-        /// <param name = "listCategory">List of category.</param>
-        /// <param name = "listProduct">List of product.</param>
+        /// <param name = "categoryList">The category list.</param>
+        /// <param name = "productList">The product list.</param>
         /// <return>Dictionary.</return>
-        private static Dictionary<string, string> MapAndCount(List<Category> listCategory, List<Product> listProduct)
+        private static Dictionary<string, string> MapAndCount(List<Category> categoryList, List<Product> productList)
         {
-            int total = listProduct.Count; // total products
+            int total = productList.Count; // total products
             int totalCID = 0; // total products which have category ID
 
-            // Create result list map
+            // Create result map list
             Dictionary<string, string> result = new Dictionary<string, string>();
             result.Add("CategoryName", "ProductCount");
 
-            foreach (var category in listCategory)
+            foreach (var category in categoryList)
             {
-                int count = listProduct.FindAll(p => p.CategoryId == category.CategoryId).Count;
+                int count = productList.FindAll(p => p.CategoryId == category.CategoryId).Count;
                 if (count != 0)
                 {
                     totalCID += count;
@@ -126,21 +137,21 @@ namespace KMS.Next.CodeQuality.CSV
             {
                 result.Add("Others", other.ToString());
             }
-            return result;
+            return result.Count > 0 ? result : null;
         }
 
         /// <summary>
-        /// Gets list of product expired next month.
+        /// Gets product list expired next month.
         /// </summary>
-        /// <param name = "listCategory">List of category.</param>
-        /// <param name = "listProduct">List of product.</param>
-        /// <return>List.</return>
-        private static List<ProductExpired> GetProductExpiredNextMonth(List<Category> listCategory, List<Product> listProduct)
+        /// <param name = "categoryList">The category list.</param>
+        /// <param name = "productList">The product list.</param>
+        /// <return>List of ProductExpired.</return>
+        private static List<ProductExpired> GetProductExpiredNextMonth(List<Category> categoryList, List<Product> productList)
         {
             // Create result list
-            List<ProductExpired> listResult = new List<ProductExpired>();
+            List<ProductExpired> resultList = new List<ProductExpired>();
 
-            foreach (var product in listProduct)
+            foreach (var product in productList)
             {
                 // Check if expired
                 DateTime now = DateTime.Now;
@@ -151,7 +162,7 @@ namespace KMS.Next.CodeQuality.CSV
                     continue;
                 }
 
-                foreach (var category in listCategory)
+                foreach (var category in categoryList)
                 {
                     var productExpired = new ProductExpired
                     {
@@ -174,48 +185,64 @@ namespace KMS.Next.CodeQuality.CSV
                     // Add to list
                     if (!string.IsNullOrEmpty(productExpired.CategoryName))
                     {
-                        listResult.Add(productExpired);
+                        resultList.Add(productExpired);
                         break; // break if match
                     }
                 }
             }
-            return listResult;
+            return resultList.Count > 0 ? resultList : null;
         }
 
-        private static string ConvertListExpiredToString(List<ProductExpired> listExpired)
+        /// <summary>
+        /// Converts list product expired to string.
+        /// </summary>
+        /// <param name = "listExpired">The list product expired.</param>
+        /// <return>System.Text.StringBuilder.</return>
+        private static List<string> ConvertProductListExpired(List<ProductExpired> listExpired)
         {
-            StringBuilder builder = new StringBuilder();
+            List<string> result = new List<string>();
+            string header = string.Empty;
+            var listProperties = typeof(ProductExpired).GetProperties();
 
+            foreach (var property in listProperties)
+            {
+                header = string.Concat(header, ',', property.Name);
+            }
+
+            // Add header
+            result.Add(header.TrimStart(','));
+
+            // Convert to list string
             foreach (var expired in listExpired)
             {
-                string temp = string.Format("{0},{1},{2},{3}", expired.ProductId, expired.ProductName, expired.CategoryName, expired.ExpiredDate);
-                builder.AppendLine(temp);
+                string temp = string.Format("{0},{1},{2},{3}", expired.ProductId, expired.ProductName, expired.CategoryName, expired.ExpiredDate.ToShortDateString());
+                result.Add(temp);
             }
-            return builder.ToString();
+            return result;
         }
 
         /// <summary>
         /// Converts list count map to string.
         /// </summary>
         /// <param name = "listMap">List map between category and product.</param>
-        /// <return>System.String.</return>
-        private static string ConvertListCountMapToString(Dictionary<string, string> listMap)
+        /// <return>List.</return>
+        private static List<string> ConvertListCount(Dictionary<string, string> listMap)
         {
-            StringBuilder builder = new StringBuilder();
+            List<string> result = new List<string>();
 
             foreach (var map in listMap)
             {
                 string temp = string.Format("{0},{1}", map.Key, map.Value);
-                builder.AppendLine(temp);
+                result.Add(temp);
             }
-            return builder.ToString();
+            return result.Count > 0 ? result : null;
         }
 
         /// <summary>
         /// Converts content of csv file to list.
         /// </summary>
         /// <param name = "lines">Content of csv file.</param>
-        /// <return>List of T</return>
+        /// <return>List of T.</return>
         private static List<T> ConvertToList<T>(Task<string[]> lines)
         {
             bool isHeader = true;
@@ -273,7 +300,7 @@ namespace KMS.Next.CodeQuality.CSV
                 var itemConvert = (T)Convert.ChangeType(item, typeof(T));
                 listResult.Add(itemConvert);
             }
-            return listResult;
+            return listResult.Count > 0 ? listResult : null;
         }
 
         /// <summary>
@@ -301,8 +328,7 @@ namespace KMS.Next.CodeQuality.CSV
                     reader.Close();
                 }
             }
-
-            return fileText.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+            return !string.IsNullOrEmpty(fileText) ? fileText.Split(new[] { Environment.NewLine }, StringSplitOptions.None) : null;
         }
     }
 }
