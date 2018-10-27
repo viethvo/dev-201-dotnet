@@ -16,10 +16,10 @@ namespace KMS.Next.CodeQuality.CSV
         /// </summary>
         /// <param name = "path">Path of  csv file.</param>
         /// <return>List of T.</return>
-        public static List<T> ReadFromFile<T>(string path)
+        public List<T> ReadFromFile<T>(string path)
         {
             // Check path
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
                 return null;
             }
@@ -34,8 +34,9 @@ namespace KMS.Next.CodeQuality.CSV
             var lines = ReadAllLines(path);
 
             // Convert lines to list
-            var listResult = lines != null ? ConvertToList<T>(lines) : null;
-            return listResult.Count > 0 ? listResult : null;
+            var listResult = lines.Result != null ? ConvertToList<T>(lines.Result) : null;
+
+            return listResult ?? null;
         }
 
         /// <summary>
@@ -45,10 +46,31 @@ namespace KMS.Next.CodeQuality.CSV
         /// <param name = "productList">The product list.</param>
         /// <param name = "path">The path of csv file.</param>
         /// <return>Task.</return>
-        public static async Task ExportCategoryCount(List<Category> categoryList, List<Product> productList, string path)
+        public async Task ExportCategoryCount(List<Category> categoryList, List<Product> productList, string path)
         {
+            // Check path
+            if (!CheckValidPath(path))
+            {
+                return;
+            }
+
+            // Check file
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            // Check list
+            if (categoryList == null
+                || productList == null
+                || categoryList.Count == 0
+                || productList.Count == 0)
+            {
+                return;
+            }
+
             // Get map list and content
-            var mapList = categoryList != null && productList != null ? MapAndCount(categoryList, productList) : null;
+            var mapList = MapAndCount(categoryList, productList);
             var content = mapList != null ? ConvertListCount(mapList) : null;
 
             // Write file
@@ -65,9 +87,30 @@ namespace KMS.Next.CodeQuality.CSV
         /// <param name = "productList">The product list.</param>
         /// <param name = "path">The path of csv file.</param>
         /// <return>Task.</return>
-        public static async Task ExportProductExpiredNextMonth(List<Category> categoryList, List<Product> productList, string path)
+        public async Task ExportProductExpiredNextMonth(List<Category> categoryList, List<Product> productList, string path)
         {
-            var listExpired = categoryList != null && productList != null ? GetProductExpiredNextMonth(categoryList, productList) : null;
+            // Check path
+            if (!CheckValidPath(path))
+            {
+                return;
+            }
+
+            // Check file
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            // Check list
+            if (categoryList == null
+                || productList == null
+                || categoryList.Count == 0
+                || productList.Count == 0)
+            {
+                return;
+            }
+
+            var listExpired = GetProductExpiredNextMonth(categoryList, productList);
             var result = listExpired != null ? ConvertProductListExpired(listExpired) : null;
 
             // Write file
@@ -83,7 +126,7 @@ namespace KMS.Next.CodeQuality.CSV
         /// <param name = "path">The path of csv file.</param>
         /// <param name = "content">The list string of csv content.</param>
         /// <return>Task.</return>
-        private static async Task WriteCsvFile(string path, List<string> content)
+        private async Task WriteCsvFile(string path, List<string> content)
         {
             // Check file
             if (File.Exists(path))
@@ -111,7 +154,7 @@ namespace KMS.Next.CodeQuality.CSV
         /// <param name = "categoryList">The category list.</param>
         /// <param name = "productList">The product list.</param>
         /// <return>Dictionary.</return>
-        private static Dictionary<string, string> MapAndCount(List<Category> categoryList, List<Product> productList)
+        private Dictionary<string, string> MapAndCount(List<Category> categoryList, List<Product> productList)
         {
             int total = productList.Count; // total products
             int totalCID = 0; // total products which have category ID
@@ -146,7 +189,7 @@ namespace KMS.Next.CodeQuality.CSV
         /// <param name = "categoryList">The category list.</param>
         /// <param name = "productList">The product list.</param>
         /// <return>List of ProductExpired.</return>
-        private static List<ProductExpired> GetProductExpiredNextMonth(List<Category> categoryList, List<Product> productList)
+        private List<ProductExpired> GetProductExpiredNextMonth(List<Category> categoryList, List<Product> productList)
         {
             // Create result list
             List<ProductExpired> resultList = new List<ProductExpired>();
@@ -198,7 +241,7 @@ namespace KMS.Next.CodeQuality.CSV
         /// </summary>
         /// <param name = "listExpired">The list product expired.</param>
         /// <return>System.Text.StringBuilder.</return>
-        private static List<string> ConvertProductListExpired(List<ProductExpired> listExpired)
+        private List<string> ConvertProductListExpired(List<ProductExpired> listExpired)
         {
             List<string> result = new List<string>();
             string header = string.Empty;
@@ -226,7 +269,7 @@ namespace KMS.Next.CodeQuality.CSV
         /// </summary>
         /// <param name = "listMap">List map between category and product.</param>
         /// <return>List.</return>
-        private static List<string> ConvertListCount(Dictionary<string, string> listMap)
+        private List<string> ConvertListCount(Dictionary<string, string> listMap)
         {
             List<string> result = new List<string>();
 
@@ -243,13 +286,13 @@ namespace KMS.Next.CodeQuality.CSV
         /// </summary>
         /// <param name = "lines">Content of csv file.</param>
         /// <return>List of T.</return>
-        private static List<T> ConvertToList<T>(Task<string[]> lines)
+        private List<T> ConvertToList<T>(string[] lines)
         {
             bool isHeader = true;
             var propListT = typeof(T).GetProperties();
             var listResult = new List<T>();
 
-            foreach (string line in lines.Result)
+            foreach (string line in lines)
             {
                 // Skip header
                 if (isHeader)
@@ -300,7 +343,15 @@ namespace KMS.Next.CodeQuality.CSV
                 var itemConvert = (T)Convert.ChangeType(item, typeof(T));
                 listResult.Add(itemConvert);
             }
-            return listResult.Count > 0 ? listResult : null;
+            if (listResult.Count == 0)
+            {
+                return null;
+            }
+
+            // Check if all values are null
+            // In the case valid file but invalid type
+            int count = listResult.FindAll(x => x == null).Count;
+            return count != listResult.Count ? listResult : null;
         }
 
         /// <summary>
@@ -308,7 +359,7 @@ namespace KMS.Next.CodeQuality.CSV
         /// </summary>
         /// <param name = "path">Path of category csv file.</param>
         /// <return>List of T</return>
-        private static async Task<string[]> ReadAllLines(string path)
+        private async Task<string[]> ReadAllLines(string path)
         {
             StreamReader reader = null;
             string fileText = string.Empty;
@@ -329,6 +380,27 @@ namespace KMS.Next.CodeQuality.CSV
                 }
             }
             return !string.IsNullOrEmpty(fileText) ? fileText.Split(new[] { Environment.NewLine }, StringSplitOptions.None) : null;
+        }
+
+        /// <summary>
+        /// Checks valid path or not.
+        /// </summary>
+        /// <param name = "path">Path of category csv file.</param>
+        /// <return>System.Boolean.</return>
+        public static bool CheckValidPath(string path)
+        {
+            string extension = Path.GetExtension(path);
+
+            bool isValid = path.IndexOfAny(Path.GetInvalidPathChars()) == -1;
+
+            if (string.IsNullOrEmpty(path) || !isValid || !extension.Equals(".csv", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
         }
     }
 }

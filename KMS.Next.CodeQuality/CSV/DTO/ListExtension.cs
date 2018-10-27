@@ -65,23 +65,44 @@ namespace KMS.Next.CodeQuality.CSV.DTO
         /// <return>Task.</return>
         public static async Task WriteToFile<T>(this List<T> resultList, string path)
         {
+            // Check path
+            if (!CsvHelper.CheckValidPath(path))
+            {
+                return;
+            }
+
             // Check file
             if (File.Exists(path))
             {
                 File.Delete(path);
             }
 
-            // Get properties
-            var properties = typeof(T).GetProperties();
+            if (resultList.Count == 0 || resultList == null)
+            {
+                return;
+            }
 
-            // Write file
+            // Create Stream
             var writer = File.OpenWrite(path);
             var streamWriter = new StreamWriter(writer);
 
+            // Get properties
+            var properties = typeof(T).GetProperties();
+            string title = string.Empty;
+
+            foreach (var property in properties)
+            {
+                title += string.Format("{0},", property.Name);
+            }
+
+            await streamWriter.WriteLineAsync(title.TrimEnd(','));
+
+            // Write file
             foreach (var item in resultList)
             {
                 await streamWriter.WriteLineAsync(item.ToString());
             }
+
 
             // Close stream
             streamWriter.Close();

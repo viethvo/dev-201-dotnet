@@ -55,7 +55,7 @@ namespace KMS.Next.CodeQuality.CSV.DTO
         /// <return>System.String.</return>
         public override string ToString()
         {
-            return string.Format("{0},{1},{2},{3},{4},{5},{6}", ProductId, ProductName, Price, ProductDescription, ExpiredDate, CategoryId, DeletedFlag);
+            return string.Format("{0},{1},{2},{3},{4},{5},{6}", ProductId, ProductName, Price, ProductDescription, ExpiredDate.ToShortDateString(), CategoryId, DeletedFlag);
         }
     }
 }
