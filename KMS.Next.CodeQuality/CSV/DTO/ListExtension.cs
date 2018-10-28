@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace KMS.Next.CodeQuality.CSV.DTO
@@ -48,7 +49,7 @@ namespace KMS.Next.CodeQuality.CSV.DTO
 
                 for (int j = 0; j < properties.Length; j++)
                 {
-                    bool isNull = properties[j].GetValue(resultList[i]) != null ? false : true;
+                    bool isNull = properties[j].GetValue(resultList[i]) == null;
                     row[j] = isNull ? string.Empty : properties[j].GetValue(resultList[i]).ToString();
                 }
                 content.Add(row);
@@ -65,6 +66,16 @@ namespace KMS.Next.CodeQuality.CSV.DTO
         /// <return>Task.</return>
         public static async Task WriteToFile<T>(this List<T> resultList, string path)
         {
+            if (resultList == null)
+            {
+                return;
+            }
+
+            if (resultList.Count == 0)
+            {
+                return;
+            }
+
             // Check path
             if (!CsvHelper.CheckValidPath(path))
             {
@@ -77,36 +88,50 @@ namespace KMS.Next.CodeQuality.CSV.DTO
                 File.Delete(path);
             }
 
-            if (resultList.Count == 0 || resultList == null)
+            string folder = path.Replace(Path.GetFileName(path), "");
+            if (!Directory.Exists(Path.GetFullPath(folder)))
             {
-                return;
+                Directory.CreateDirectory(Path.GetFullPath(folder));
             }
 
             // Create Stream
-            var writer = File.OpenWrite(path);
-            var streamWriter = new StreamWriter(writer);
+            FileStream writer = null;
+            StreamWriter streamWriter = null;
 
             // Get properties
             var properties = typeof(T).GetProperties();
-            string title = string.Empty;
+            StringBuilder title = new StringBuilder();
 
             foreach (var property in properties)
             {
-                title += string.Format("{0},", property.Name);
+                title.Append(string.Format("{0},", property.Name));
             }
 
-            await streamWriter.WriteLineAsync(title.TrimEnd(','));
-
-            // Write file
-            foreach (var item in resultList)
+            try
             {
-                await streamWriter.WriteLineAsync(item.ToString());
+                writer = File.OpenWrite(path);
+                streamWriter = new StreamWriter(writer);
+
+                await streamWriter.WriteLineAsync(title.ToString().TrimEnd(','));
+
+                // Write file
+                foreach (var item in resultList)
+                {
+                    await streamWriter.WriteLineAsync(item.ToString());
+                }
+
             }
-
-
-            // Close stream
-            streamWriter.Close();
-            writer.Close();
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            finally
+            {
+                if (streamWriter != null)
+                {
+                    streamWriter.Dispose();
+                }
+            }
         }
     }
 
@@ -119,7 +144,7 @@ namespace KMS.Next.CodeQuality.CSV.DTO
         /// Gets or sets table width.
         /// </summary>
         /// <value>The table width.</value>
-        public static int tableWidth = 150;
+        public static readonly int tableWidth = 150;
 
         /// <summary>
         /// Draws console table.
@@ -164,18 +189,18 @@ namespace KMS.Next.CodeQuality.CSV.DTO
         /// <return>Void.</return>
         private static void PrintRow(string[] columns, int errorLine = -1)
         {
-            if (columns == null && errorLine != -1)
+            if (columns == null || errorLine != -1)
             {
                 Console.WriteLine("Line {0}: Invalid format", errorLine);
                 return;
             }
 
             int width = (tableWidth - columns.Length) / columns.Length;
-            string row = "|";
+            StringBuilder row = new StringBuilder("|");
 
             foreach (string column in columns)
             {
-                row += AlignCentre(column, width) + "|";
+                row.Append(string.Format("{0}|", AlignCentre(column, width)));
             }
 
             Console.WriteLine(row);

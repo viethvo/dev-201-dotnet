@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace KMS.Next.CodeQuality.Tests
@@ -11,7 +12,7 @@ namespace KMS.Next.CodeQuality.Tests
     [TestClass]
     public class CsvHelperTests
     {
-        private string productPath, categoryPath, invalidPath;
+        private string productPath, productMockPath, categoryPath, categoryMockPath, invalidPath;
         private string invalidFilePath, validMockPath, categoryCountPath, productExpiredPath;
         private CsvHelper csvHelper;
         private Product product1;
@@ -23,14 +24,38 @@ namespace KMS.Next.CodeQuality.Tests
         public void Init()
         {
             string currentPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase;
-            categoryPath = currentPath + "\\Data\\category.csv";
-            productPath = currentPath + "\\Data\\product.csv";
-            invalidFilePath = currentPath + "\\Data\\invalid.csv";
-            categoryCountPath = currentPath + "\\Data\\category_count.csv";
-            productExpiredPath = currentPath + "\\Data\\product_expired.csv";
+            string format = "{0}\\{1}\\{2}.csv";
+            categoryPath = string.Format(format, currentPath, "Export", "category");
+            productPath = string.Format(format, currentPath, "Export", "product");
+            categoryMockPath = string.Format(format, currentPath, "MockData", "category");
+            productMockPath = string.Format(format, currentPath, "MockData", "product");
+            invalidFilePath = string.Format(format, currentPath, "MockData", "invalid");
+            categoryCountPath = string.Format(format, currentPath, "Export", "category_count");
+            productExpiredPath = string.Format(format, currentPath, "Export", "product_expired");
             invalidPath = "* invalid )(";
             validMockPath = productPath;
+            categoryEmptyList = Enumerable.Empty<Category>().ToList();
+            productEmptyList = Enumerable.Empty<Product>().ToList();
             csvHelper = new CsvHelper();
+            if (File.Exists(productPath))
+            {
+                File.Delete(productPath);
+            }
+
+            if (File.Exists(categoryPath))
+            {
+                File.Delete(categoryPath);
+            }
+
+            if (File.Exists(categoryCountPath))
+            {
+                File.Delete(categoryCountPath);
+            }
+
+            if (File.Exists(productExpiredPath))
+            {
+                File.Delete(productExpiredPath);
+            }
 
             #region MockData
 
@@ -62,7 +87,7 @@ namespace KMS.Next.CodeQuality.Tests
         }
 
         [TestMethod]
-        public void CsvHelper_ReadFromCategoryFile_WithEmptyPath_ShouldReturnNull()
+        public void CsvHelper_ReadFromCategoryFile_WithEmptyPath_ShouldReturnEmptyList()
         {
             // arrange
             List<Category> list = new List<Category>();
@@ -71,11 +96,11 @@ namespace KMS.Next.CodeQuality.Tests
             list = csvHelper.ReadFromFile<Category>(string.Empty);
 
             // assert
-            Assert.IsNull(list);
+            Assert.AreEqual(list.Count > 0, false);
         }
 
         [TestMethod]
-        public void CsvHelper_ReadFromCategoryFile_WithInvalidPath_ShouldReturnNull()
+        public void CsvHelper_ReadFromCategoryFile_WithInvalidPath_ShouldReturnEmptyList()
         {
             // arrange
             List<Category> list = new List<Category>();
@@ -84,11 +109,12 @@ namespace KMS.Next.CodeQuality.Tests
             list = csvHelper.ReadFromFile<Category>(invalidPath);
 
             // assert
-            Assert.IsNull(list);
+            Assert.IsNotNull(list);
+            Assert.AreEqual(list.Count > 0, false);
         }
 
         [TestMethod]
-        public void CsvHelper_ReadFromProductFile_WithEmptyPath_ShouldReturnNull()
+        public void CsvHelper_ReadFromProductFile_WithEmptyPath_ShouldReturnEmptyList()
         {
             // arrange
             List<Product> list = new List<Product>();
@@ -97,11 +123,12 @@ namespace KMS.Next.CodeQuality.Tests
             list = csvHelper.ReadFromFile<Product>(string.Empty);
 
             // assert
-            Assert.IsNull(list);
+            Assert.IsNotNull(list);
+            Assert.AreEqual(list.Count > 0, false);
         }
 
         [TestMethod]
-        public void CsvHelper_ReadFromProductFile_WithInvalidPath_ShouldReturnNull()
+        public void CsvHelper_ReadFromProductFile_WithInvalidPath_ShouldReturnEmptyList()
         {
             // arrange
             List<Product> list = new List<Product>();
@@ -110,12 +137,13 @@ namespace KMS.Next.CodeQuality.Tests
             list = csvHelper.ReadFromFile<Product>(invalidPath);
 
             // assert
-            Assert.IsNull(list);
+            Assert.IsNotNull(list);
+            Assert.AreEqual(list.Count > 0, false);
         }
 
         [TestMethod]
-        [ExpectedException(typeof(Exception), "This type is not supported!")]
-        public void CsvHelper_ReadFromCsvFile_WithInvalidClassAndValidPath_ShouldReturnNull()
+        [ExpectedException(typeof(ArgumentException), "This type is not supported!")]
+        public void CsvHelper_ReadFromCsvFile_WithInvalidClassAndValidPath_ShouldReturnException()
         {
             // arrange
             List<int> list = new List<int>();
@@ -128,7 +156,7 @@ namespace KMS.Next.CodeQuality.Tests
         }
 
         [TestMethod]
-        public void CsvHelper_ReadFromProductFile_WithInvalidContent_ShouldReturnNull()
+        public void CsvHelper_ReadFromProductFile_WithInvalidContent_ShouldReturnEmptyList()
         {
             // arrange
             List<Product> list = new List<Product>();
@@ -137,11 +165,11 @@ namespace KMS.Next.CodeQuality.Tests
             list = csvHelper.ReadFromFile<Product>(invalidFilePath);
 
             // assert
-            Assert.IsNull(list);
+            Assert.AreEqual(list.Count > 0, false);
         }
 
         [TestMethod]
-        public void CsvHelper_ReadFromCategoryFile_WithInvalidContent_ShouldReturnNull()
+        public void CsvHelper_ReadFromCategoryFile_WithInvalidContent_ShouldReturnEmptyList()
         {
             // arrange
             List<Category> list = new List<Category>();
@@ -150,7 +178,8 @@ namespace KMS.Next.CodeQuality.Tests
             list = csvHelper.ReadFromFile<Category>(invalidFilePath);
 
             // assert
-            Assert.IsNull(list);
+            Assert.IsNotNull(list);
+            Assert.AreEqual(list.Count > 0, false);
         }
 
         [TestMethod]
@@ -160,10 +189,11 @@ namespace KMS.Next.CodeQuality.Tests
             List<Category> list = new List<Category>();
 
             // act
-            list = csvHelper.ReadFromFile<Category>(categoryPath);
+            list = csvHelper.ReadFromFile<Category>(categoryMockPath);
 
             // assert
             Assert.IsNotNull(list);
+            Assert.AreEqual(list.Count > 0, true);
         }
 
         [TestMethod]
@@ -173,36 +203,38 @@ namespace KMS.Next.CodeQuality.Tests
             List<Product> list = new List<Product>();
 
             // act
-            list = csvHelper.ReadFromFile<Product>(productPath);
+            list = csvHelper.ReadFromFile<Product>(productMockPath);
 
             // assert
             Assert.IsNotNull(list);
+            Assert.AreEqual(list.Count > 0, true);
         }
 
         [TestMethod]
-        public void CsvHelper_ReadFromCategoryFile_WithValidContentButProductType_ShouldReturnNull()
+        public void CsvHelper_ReadFromCategoryFile_WithValidContentButProductType_ShouldReturnEmptyArray()
         {
             // arrange
             List<Product> list = new List<Product>();
 
             // act
-            list = csvHelper.ReadFromFile<Product>(categoryPath);
+            list = csvHelper.ReadFromFile<Product>(categoryMockPath);
 
             // assert
-            Assert.IsNull(list);
+            Assert.IsNotNull(list);
+            Assert.AreEqual(list.Count > 0, false);
         }
 
         [TestMethod]
-        public void CsvHelper_ReadFromProductFile_WithValidContentButCategoryType_ShouldReturnNull()
+        public void CsvHelper_ReadFromProductFile_WithValidContentButCategoryType_ShouldReturnEmptyArray()
         {
             // arrange
             List<Category> list = new List<Category>();
 
             // act
-            list = csvHelper.ReadFromFile<Category>(productPath);
+            list = csvHelper.ReadFromFile<Category>(productMockPath);
 
             // assert
-            Assert.IsNull(list);
+            Assert.AreEqual(list.Count > 0, false);
         }
 
         [TestMethod]
@@ -259,10 +291,10 @@ namespace KMS.Next.CodeQuality.Tests
 
             // act
             await csvHelper.ExportCategoryCount(categoryList, productList, invalidPath);
-            bool isFileExist = File.Exists(categoryCountPath);
+            bool isFileExist = File.Exists(invalidPath);
 
             // assert
-            Assert.AreEqual(isFileExist, true);
+            Assert.AreEqual(isFileExist, false);
         }
 
         [TestMethod]
@@ -329,7 +361,7 @@ namespace KMS.Next.CodeQuality.Tests
         public void CsvHelper_CheckValidPath_WithValidPath_ShouldReturnTrue()
         {
             // act
-            bool isValidPath = CsvHelper.CheckValidPath(productPath);
+            bool isValidPath = CsvHelper.CheckValidPath(productMockPath);
 
             // assert
             Assert.AreEqual(isValidPath, true);

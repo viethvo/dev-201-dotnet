@@ -10,15 +10,25 @@ namespace KMS.Next.CodeQuality.Tests.CSV.DTO
     [TestClass]
     public class ListExtensionTests
     {
-        private string categoryPath;
-        private string productPath;
+        private string categoryMockPath;
+        private string productMockPath;
 
         [TestInitialize]
         public void Init()
         {
             string currentPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase;
-            categoryPath = currentPath + "\\Data\\category_export.csv";
-            productPath = currentPath + "\\Data\\product_export.csv";
+            string format = "{0}\\{1}\\{2}.csv";
+            categoryMockPath = string.Format(format, currentPath, "Export", "list_category");
+            productMockPath = string.Format(format, currentPath, "Export", "list_product");
+            if (File.Exists(categoryMockPath))
+            {
+                File.Delete(categoryMockPath);
+            }
+
+            if (File.Exists(productMockPath))
+            {
+                File.Delete(productMockPath);
+            }
         }
 
         [TestMethod]
@@ -28,8 +38,8 @@ namespace KMS.Next.CodeQuality.Tests.CSV.DTO
             List<Category> list = new List<Category>();
 
             // act
-            await list.WriteToFile(categoryPath);
-            bool isFileExist = File.Exists(categoryPath);
+            await list.WriteToFile(categoryMockPath);
+            bool isFileExist = File.Exists(categoryMockPath);
 
             // assert
             Assert.AreEqual(isFileExist, false);
@@ -42,8 +52,8 @@ namespace KMS.Next.CodeQuality.Tests.CSV.DTO
             List<Product> list = new List<Product>();
 
             // act
-            await list.WriteToFile(productPath);
-            bool isFileExist = File.Exists(productPath);
+            await list.WriteToFile(productMockPath);
+            bool isFileExist = File.Exists(productMockPath);
 
             // assert
             Assert.AreEqual(isFileExist, false);
@@ -78,8 +88,8 @@ namespace KMS.Next.CodeQuality.Tests.CSV.DTO
             list.Add(product2);
 
             // act
-            await list.WriteToFile(productPath);
-            bool isFileExist = File.Exists(productPath);
+            await list.WriteToFile(productMockPath);
+            bool isFileExist = File.Exists(productMockPath);
 
             // assert
             Assert.AreEqual(isFileExist, true);
@@ -110,8 +120,8 @@ namespace KMS.Next.CodeQuality.Tests.CSV.DTO
             list.Add(category2);
 
             // act
-            await list.WriteToFile(categoryPath);
-            bool isFileExist = File.Exists(categoryPath);
+            await list.WriteToFile(categoryMockPath);
+            bool isFileExist = File.Exists(categoryMockPath);
 
             // assert
             Assert.AreEqual(isFileExist, true);
