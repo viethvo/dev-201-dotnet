@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace KMS.Next.CodeQuality.CSV
@@ -18,25 +20,18 @@ namespace KMS.Next.CodeQuality.CSV
         /// <return>List of T.</return>
         public List<T> ReadFromFile<T>(string path)
         {
-            // Check path
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
-            {
-                return null;
-            }
-
             // Check type
             if (typeof(T) != typeof(Category) && typeof(T) != typeof(Product))
             {
-                throw new Exception("This type is not supported!");
+                throw new ArgumentException("This type is not supported!");
             }
 
             // Read all from file
             var lines = ReadAllLines(path);
 
             // Convert lines to list
-            var listResult = lines.Result != null ? ConvertToList<T>(lines.Result) : null;
-
-            return listResult ?? null;
+            var listResult = lines.Result.Length > 0 ? ConvertToList<T>(lines.Result) : Enumerable.Empty<T>().ToList();
+            return listResult.Count > 0 ? listResult : Enumerable.Empty<T>().ToList();
         }
 
         /// <summary>
@@ -48,33 +43,18 @@ namespace KMS.Next.CodeQuality.CSV
         /// <return>Task.</return>
         public async Task ExportCategoryCount(List<Category> categoryList, List<Product> productList, string path)
         {
-            // Check path
-            if (!CheckValidPath(path))
-            {
-                return;
-            }
-
-            // Check file
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-
             // Check list
-            if (categoryList == null
-                || productList == null
-                || categoryList.Count == 0
-                || productList.Count == 0)
+            if (!(categoryList.Count > 0 && productList.Count > 0))
             {
                 return;
             }
 
             // Get map list and content
             var mapList = MapAndCount(categoryList, productList);
-            var content = mapList != null ? ConvertListCount(mapList) : null;
+            var content = mapList.Count > 0 ? ConvertListCount(mapList) : Enumerable.Empty<string>().ToList();
 
             // Write file
-            if (content != null)
+            if (content.Count > 0)
             {
                 await WriteCsvFile(path, content);
             }
@@ -89,32 +69,17 @@ namespace KMS.Next.CodeQuality.CSV
         /// <return>Task.</return>
         public async Task ExportProductExpiredNextMonth(List<Category> categoryList, List<Product> productList, string path)
         {
-            // Check path
-            if (!CheckValidPath(path))
-            {
-                return;
-            }
-
-            // Check file
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-
             // Check list
-            if (categoryList == null
-                || productList == null
-                || categoryList.Count == 0
-                || productList.Count == 0)
+            if (!(categoryList.Count > 0 && productList.Count > 0))
             {
                 return;
             }
 
             var listExpired = GetProductExpiredNextMonth(categoryList, productList);
-            var result = listExpired != null ? ConvertProductListExpired(listExpired) : null;
+            var result = listExpired.Count > 0 ? ConvertProductListExpired(listExpired) : Enumerable.Empty<string>().ToList();
 
             // Write file
-            if (result != null)
+            if (result.Count > 0)
             {
                 await WriteCsvFile(path, result);
             }
@@ -128,24 +93,48 @@ namespace KMS.Next.CodeQuality.CSV
         /// <return>Task.</return>
         private async Task WriteCsvFile(string path, List<string> content)
         {
+            // Check path
+            if (!CheckValidPath(path))
+            {
+                return;
+            }
+
             // Check file
             if (File.Exists(path))
             {
                 File.Delete(path);
             }
 
-            // Write file
-            var writer = File.OpenWrite(path);
-            var streamWriter = new StreamWriter(writer);
-
-            foreach (var line in content)
+            string folder = path.Replace(Path.GetFileName(path), "");
+            if (!Directory.Exists(Path.GetFullPath(folder)))
             {
-                await streamWriter.WriteLineAsync(line);
+                Directory.CreateDirectory(Path.GetFullPath(folder));
             }
 
-            // Close stream
-            streamWriter.Close();
-            writer.Close();
+            FileStream writer = null;
+            StreamWriter streamWriter = null;
+
+            try
+            {
+                writer = File.OpenWrite(path);
+                streamWriter = new StreamWriter(writer);
+
+                foreach (var line in content)
+                {
+                    await streamWriter.WriteLineAsync(line);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            finally
+            {
+                if (streamWriter != null)
+                {
+                    streamWriter.Dispose();
+                }
+            }
         }
 
         /// <summary>
@@ -180,7 +169,7 @@ namespace KMS.Next.CodeQuality.CSV
             {
                 result.Add("Others", other.ToString());
             }
-            return result.Count > 0 ? result : null;
+            return result;
         }
 
         /// <summary>
@@ -204,36 +193,50 @@ namespace KMS.Next.CodeQuality.CSV
                 {
                     continue;
                 }
-
-                foreach (var category in categoryList)
+                else
                 {
-                    var productExpired = new ProductExpired
-                    {
-                        ProductId = product.ProductId,
-                        ProductName = product.ProductName,
-                        ExpiredDate = product.ExpiredDate
-                    };
-
-                    // Check and map product and category
-                    if (product.CategoryId == category.CategoryId)
-                    {
-                        productExpired.CategoryName = category.CategoryName;
-                    }
-
-                    if (product.CategoryId == null)
-                    {
-                        productExpired.CategoryName = "Others";
-                    }
-
-                    // Add to list
-                    if (!string.IsNullOrEmpty(productExpired.CategoryName))
-                    {
-                        resultList.Add(productExpired);
-                        break; // break if match
-                    }
+                    UpdateExpiredList(categoryList, product, resultList);
                 }
             }
-            return resultList.Count > 0 ? resultList : null;
+            return resultList.Count > 0 ? resultList : Enumerable.Empty<ProductExpired>().ToList();
+        }
+
+        /// <summary>
+        /// Updates product list expired.
+        /// </summary>
+        /// <param name = "categoryList">The category list.</param>
+        /// <param name = "product">The product need to be mapped.</param>
+        /// <param name = "resultList">The result list need to be updated.</param>
+        /// <return>Void.</return>
+        private void UpdateExpiredList(List<Category> categoryList, Product product, List<ProductExpired> resultList)
+        {
+            foreach (var category in categoryList)
+            {
+                var productExpired = new ProductExpired
+                {
+                    ProductId = product.ProductId,
+                    ProductName = product.ProductName,
+                    ExpiredDate = product.ExpiredDate
+                };
+
+                // Check and map product and category
+                if (product.CategoryId == category.CategoryId)
+                {
+                    productExpired.CategoryName = category.CategoryName;
+                }
+
+                if (product.CategoryId == null)
+                {
+                    productExpired.CategoryName = "Others";
+                }
+
+                // Add to list
+                if (!string.IsNullOrEmpty(productExpired.CategoryName))
+                {
+                    resultList.Add(productExpired);
+                    break; // break if match
+                }
+            }
         }
 
         /// <summary>
@@ -290,7 +293,7 @@ namespace KMS.Next.CodeQuality.CSV
         {
             bool isHeader = true;
             var propListT = typeof(T).GetProperties();
-            var listResult = new List<T>();
+            var resultList = new List<T>();
 
             foreach (string line in lines)
             {
@@ -312,46 +315,62 @@ namespace KMS.Next.CodeQuality.CSV
                 // Check if values match properties
                 if (values.Length != propListT.Length)
                 {
-                    listResult.Add(default(T));
+                    resultList.Add(default(T));
                     continue;
                 }
-
-                var item = Activator.CreateInstance(typeof(T));
-                try
+                else
                 {
-                    // Add values to class if match
-                    for (int i = 0; i < propListT.Length; i++)
-                    {
-                        if (string.IsNullOrEmpty(values[i]))
-                        {
-                            continue;
-                        }
-                        // Check if nullable and match
-                        Type type = Nullable.GetUnderlyingType(propListT[i].PropertyType) ?? propListT[i].PropertyType;
-                        object safeValue = (values[i] == null) ? null : Convert.ChangeType(values[i], type);
-                        propListT[i].SetValue(item, safeValue, null);
-                    }
+                    UpdateListWhenMatch(resultList, propListT, values);
                 }
-                catch
-                {
-                    // Can't convert type
-                    listResult.Add(default(T));
-                    continue;
-                }
-
-                // Convert type success and add to list
-                var itemConvert = (T)Convert.ChangeType(item, typeof(T));
-                listResult.Add(itemConvert);
             }
-            if (listResult.Count == 0)
+
+            if (resultList.Count == 0)
             {
-                return null;
+                return Enumerable.Empty<T>().ToList();
             }
 
             // Check if all values are null
             // In the case valid file but invalid type
-            int count = listResult.FindAll(x => x == null).Count;
-            return count != listResult.Count ? listResult : null;
+            var nullList = resultList.FindAll(x => x == null);
+            int count = nullList != Enumerable.Empty<T>().ToList() ? nullList.Count : 0;
+            return count == resultList.Count ? Enumerable.Empty<T>().ToList() : resultList;
+        }
+
+        /// <summary>
+        /// Updates list when match values and properties.
+        /// </summary>
+        /// <param name = "resultList">The result list.</param>
+        /// <param name = "propListT">The property list.</param>
+        /// <param name = "values">The values array.</param>
+        /// <return>Void.</return>
+        private void UpdateListWhenMatch<T>(List<T> resultList, PropertyInfo[] propListT, string[] values)
+        {
+            var item = Activator.CreateInstance(typeof(T));
+            try
+            {
+                // Add values to class if match
+                for (int i = 0; i < propListT.Length; i++)
+                {
+                    if (string.IsNullOrEmpty(values[i]))
+                    {
+                        continue;
+                    }
+                    // Check if nullable and match
+                    Type type = Nullable.GetUnderlyingType(propListT[i].PropertyType) ?? propListT[i].PropertyType;
+                    object safeValue = (values[i] == null) ? null : Convert.ChangeType(values[i], type);
+                    propListT[i].SetValue(item, safeValue, null);
+                }
+            }
+            catch
+            {
+                // Can't convert type
+                resultList.Add(default(T));
+                return;
+            }
+
+            // Convert type success and add to list
+            var itemConvert = (T)Convert.ChangeType(item, typeof(T));
+            resultList.Add(itemConvert);
         }
 
         /// <summary>
@@ -361,25 +380,32 @@ namespace KMS.Next.CodeQuality.CSV
         /// <return>List of T</return>
         private async Task<string[]> ReadAllLines(string path)
         {
+            // Check path
+            if (!(CheckValidPath(path) && File.Exists(path)))
+            {
+                return Array.Empty<string>();
+            }
+
             StreamReader reader = null;
             string fileText = string.Empty;
+
             try
             {
                 reader = File.OpenText(path);
                 fileText = await reader.ReadToEndAsync();
             }
-            catch
+            catch (Exception ex)
             {
-                throw new Exception("Failed to read file");
+                throw ex;
             }
             finally
             {
                 if (reader != null)
                 {
-                    reader.Close();
+                    reader.Dispose();
                 }
             }
-            return !string.IsNullOrEmpty(fileText) ? fileText.Split(new[] { Environment.NewLine }, StringSplitOptions.None) : null;
+            return !string.IsNullOrEmpty(fileText) ? fileText.Split(new[] { Environment.NewLine }, StringSplitOptions.None) : Array.Empty<string>();
         }
 
         /// <summary>
@@ -389,17 +415,17 @@ namespace KMS.Next.CodeQuality.CSV
         /// <return>System.Boolean.</return>
         public static bool CheckValidPath(string path)
         {
-            string extension = Path.GetExtension(path);
+            bool isExtension = Path.GetExtension(path).Equals(".csv", StringComparison.OrdinalIgnoreCase);
 
-            bool isValid = path.IndexOfAny(Path.GetInvalidPathChars()) == -1;
+            bool isValid = path.IndexOfAny(Path.GetInvalidPathChars()) == -1 && !string.IsNullOrEmpty(path);
 
-            if (string.IsNullOrEmpty(path) || !isValid || !extension.Equals(".csv", StringComparison.OrdinalIgnoreCase))
+            if (isValid && isExtension)
             {
-                return false;
+                return true;
             }
             else
             {
-                return true;
+                return false;
             }
         }
     }
